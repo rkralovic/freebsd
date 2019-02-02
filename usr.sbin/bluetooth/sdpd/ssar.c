@@ -224,9 +224,15 @@ server_prepare_service_search_attribute_response(server_p srv, int32_t fd)
 			puuid.b[2] = provider->profile->uuid >> 8;
 			puuid.b[3] = provider->profile->uuid;
 
-			if (memcmp(&uuid, &puuid, sizeof(uuid)) != 0 &&
-			    memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) != 0)
-				continue;
+			int matches = memcmp(&uuid, &puuid, sizeof(uuid)) == 0 ||
+				memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) == 0;
+			for (const attr_t* a = provider->profile->attrs; (a->attr || a->create) && !matches; ++a) {
+				memcpy(&puuid, &uuid_base, sizeof(puuid));
+				puuid.b[2] = a->attr >> 8;
+				puuid.b[3] = a->attr;
+				matches = matches || (memcmp(&uuid, &puuid, sizeof(uuid)) == 0);
+			}
+			if (!matches) continue;
 
 			cs = server_prepare_attr_list(provider,
 				aidptr, aidptr + aidlen, ptr, rsp_end);
